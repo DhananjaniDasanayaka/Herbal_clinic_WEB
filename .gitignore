@@ -1,0 +1,36 @@
+# Virtual environment
+venv/
+env/
+ml_backend/venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Build files
+dist/
+build/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+
+venv/
+ml_backend/venv/
+__pycache__/
+*.pyc
+*.dll
+*.h5
+*.pkl
+
+venv/
+ml_backend/venv/
+__pycache__/
+*.pyc
+*.dll
+dist/
+build/
+.env
