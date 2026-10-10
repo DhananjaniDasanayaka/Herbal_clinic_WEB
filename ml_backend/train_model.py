@@ -65,3 +65,25 @@ history = model.fit(train_dataset, validation_data=val_dataset, epochs=5)
 # 7. Save the trained brain to a file
 model.save('dosha_model.keras') # Changed to .keras
 print("✅ SUCCESS: Model trained and saved as 'dosha_model.keras'!")
+
+# 8. Save metrics for the thesis (Table 5.4) and print a confusion matrix (Section 5.7)
+import json
+json.dump(history.history, open('history.json', 'w'))
+
+print("\n=== FINAL METRICS ===")
+print("Training Accuracy   : %.2f%%" % (history.history['accuracy'][-1] * 100))
+print("Validation Accuracy : %.2f%%" % (history.history['val_accuracy'][-1] * 100))
+print("Training Loss       : %.4f" % history.history['loss'][-1])
+print("Validation Loss     : %.4f" % history.history['val_loss'][-1])
+
+import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
+
+y_true = np.concatenate([y.numpy() for _, y in val_dataset])
+y_pred = np.argmax(model.predict(val_dataset), axis=1)
+
+print("\n=== CONFUSION MATRIX (rows=actual, cols=predicted) ===")
+print("Classes:", class_names)
+print(confusion_matrix(y_true, y_pred))
+print("\n=== CLASSIFICATION REPORT ===")
+print(classification_report(y_true, y_pred, target_names=class_names))

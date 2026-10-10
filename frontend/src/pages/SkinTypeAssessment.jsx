@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MeditationPlayer from '../components/MeditationPlayer'; 
 import SkincareChecklist from '../components/SkincareChecklist'; // 1. Imported your checklist!
 
@@ -8,6 +8,13 @@ export default function SkinTypeAssessment() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // --- CAMERA STATE/REFS ---
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
 
   // --- FETCH USER NAME FROM DB ON LOAD ---
   useEffect(() => {
@@ -113,6 +120,64 @@ export default function SkinTypeAssessment() {
     }
   };
 
+  // --- CAMERA FUNCTIONS ---
+  const openCamera = async () => {
+    setCameraError(null);
+    setIsCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Camera access error:', error);
+      setCameraError('Could not access camera. Please check permissions and try again.');
+    }
+  };
+
+  const closeCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+    setCameraError(null);
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `dosha-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        setSelectedImage(file);
+        setPreviewUrl(URL.createObjectURL(blob));
+        setAiResult(null);
+      }
+      closeCamera();
+    }, 'image/jpeg', 0.92);
+  };
+
+  // Clean up camera stream if the component unmounts while camera is open
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
   const handleAnalyze = async () => {
     if (!selectedImage) return;
     setLoading(true);
@@ -166,11 +231,23 @@ export default function SkinTypeAssessment() {
             )}
           </div>
 
-          <div className="flex space-x-4 w-full justify-center">
+          <div className="flex flex-wrap gap-4 w-full justify-center">
             <label className="cursor-pointer bg-white border border-green-600 text-green-700 px-8 py-3 rounded-lg font-medium hover:bg-green-50 transition-colors shadow-sm">
               Choose Photo
               <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
             </label>
+
+            <button
+              type="button"
+              onClick={openCamera}
+              className="bg-white border border-green-600 text-green-700 px-8 py-3 rounded-lg font-medium hover:bg-green-50 transition-colors shadow-sm flex items-center gap-2"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Take Photo
+            </button>
             
             <button 
               onClick={handleAnalyze} 
@@ -180,6 +257,48 @@ export default function SkinTypeAssessment() {
               {loading ? 'Analyzing...' : 'Analyze Dosha'}
             </button>
           </div>
+
+          {/* --- CAMERA MODAL --- */}
+          {isCameraOpen && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-5 flex flex-col items-center">
+                <h3 className="font-semibold text-gray-800 mb-4 self-start">Take a Photo</h3>
+
+                {cameraError ? (
+                  <p className="text-red-600 text-sm mb-4 text-center">{cameraError}</p>
+                ) : (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full rounded-lg bg-black mb-4 aspect-video object-cover"
+                  />
+                )}
+
+                <canvas ref={canvasRef} className="hidden" />
+
+                <div className="flex gap-3 w-full justify-center">
+                  <button
+                    type="button"
+                    onClick={closeCamera}
+                    className="px-6 py-2 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  {!cameraError && (
+                    <button
+                      type="button"
+                      onClick={capturePhoto}
+                      className="px-6 py-2 rounded-lg font-medium text-white bg-green-600 hover:bg-green-700 transition-colors"
+                    >
+                      Capture
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* --- AI RESULT, MEDIA PLAYER & CHECKLIST --- */}
           {aiResult && (
