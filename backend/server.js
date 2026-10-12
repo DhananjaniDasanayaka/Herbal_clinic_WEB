@@ -7,6 +7,10 @@ const { getJwtSecret } = require('./config/jwt');
 // Fail before opening a listening socket if authentication is misconfigured.
 getJwtSecret();
 
+const dns = require('node:dns');
+
+dns.setServers(['8.8.8.8', '1.1.1.1']);
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const assessmentRoutes = require('./routes/assessment');
@@ -16,8 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-})
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected'))
   .catch(err => console.log('❌ MongoDB connection error:', err));
 
