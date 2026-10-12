@@ -1,41 +1,78 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function MeditationPlayer({ title, audioSrc }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [currentSrc, setCurrentSrc] = useState(audioSrc);
+  const [audioError, setAudioError] = useState(null);
   
   const audioRef = useRef(null);
 
-  const togglePlay = () => {
+  useEffect(() => {
+    setCurrentSrc(audioSrc);
+    setAudioError(null);
+    setIsPlaying(false);
+    setCurrentTime(0);
+  }, [audioSrc]);
+
+  const togglePlay = async () => {
+    if (!audioRef.current) return;
+
     if (isPlaying) {
       audioRef.current.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play();
+      try {
+        setAudioError(null);
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (err) {
+        console.warn('Audio playback error:', err);
+        setIsPlaying(false);
+        // If the current audio file failed, fallback to a verified track
+        if (currentSrc !== '/audio/vata-audio.mp3') {
+          console.log('Attempting safe fallback to /audio/vata-audio.mp3');
+          setCurrentSrc('/audio/vata-audio.mp3');
+        } else {
+          setAudioError('Audio track is currently unavailable.');
+        }
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
-  // 1. Listen to the audio playing and update the current time
   const handleTimeUpdate = () => {
-    setCurrentTime(audioRef.current.currentTime);
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
   };
 
-  // 2. Read how long the MP3 is once it loads
   const handleLoadedMetadata = () => {
-    setDuration(audioRef.current.duration);
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
   };
 
-  // 3. Allow the user to drag the progress bar to skip around
+  const handleAudioError = () => {
+    console.warn(`Audio track failed to load: ${currentSrc}`);
+    // Safe fallback to verified harmonic track
+    if (currentSrc !== '/audio/vata-audio.mp3') {
+      setCurrentSrc('/audio/vata-audio.mp3');
+    } else {
+      setAudioError('Meditation audio is currently offline.');
+    }
+  };
+
   const handleSeek = (e) => {
-    const newTime = e.target.value;
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    const newTime = Number(e.target.value);
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
   };
 
-  // 4. Helper function to turn "65 seconds" into "01:05"
   const formatTime = (timeInSeconds) => {
-    if (isNaN(timeInSeconds)) return "00:00";
+    if (isNaN(timeInSeconds) || timeInSeconds < 0) return "00:00";
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = Math.floor(timeInSeconds % 60);
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -43,23 +80,30 @@ export default function MeditationPlayer({ title, audioSrc }) {
 
   return (
     <div className="bg-white rounded-xl border border-blue-100 p-5 shadow-sm mt-4">
-      
-      {/* The hidden audio element with new event listeners */}
+      {/* Hidden audio element with fallback and error listeners */}
       <audio 
         ref={audioRef} 
-        src={audioSrc} 
+        src={currentSrc} 
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onError={handleAudioError}
         onEnded={() => setIsPlaying(false)} 
       />
 
       <div className="flex justify-between items-center mb-4">
         <div>
           <h3 className="font-semibold text-gray-800">{title}</h3>
-          <p className="text-sm text-gray-500">Guided Session</p>
+          <p className="text-sm text-gray-500">
+            {audioError ? (
+              <span className="text-amber-600">{audioError}</span>
+            ) : (
+              'Guided Session'
+            )}
+          </p>
         </div>
         <button 
           onClick={togglePlay}
+          aria-label={isPlaying ? 'Pause meditation session' : 'Play meditation session'}
           className={`h-12 w-12 rounded-full flex items-center justify-center transition-colors ${
             isPlaying ? 'bg-blue-100 text-blue-600' : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
@@ -76,7 +120,7 @@ export default function MeditationPlayer({ title, audioSrc }) {
         </button>
       </div>
       
-      {/* The Real, Synced Progress Bar */}
+      {/* Real Synced Progress Bar */}
       <input 
         type="range" 
         min="0" 

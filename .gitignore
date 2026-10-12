@@ -2,6 +2,7 @@
 venv/
 env/
 ml_backend/venv/
+ml_backend/.venv/
 
 # Python cache
 __pycache__/

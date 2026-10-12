@@ -8,16 +8,30 @@ const userSchema = new mongoose.Schema({
   email: { 
     type: String, 
     required: true, 
-    unique: true // Prevents two accounts with the same email
+    unique: true
   },
   password: { 
     type: String, 
     required: true 
   },
+  // Backward-compatible primary skin type
   skinType: { 
     type: String, 
-    default: null // We will update this after they take the assessment!
+    default: null 
+  },
+  // Structured multi-modal assessment classifications
+  imageSkinType: {
+    type: String,
+    default: null
+  },
+  questionnaireSkinType: {
+    type: String,
+    default: null
+  },
+  lastAssessmentDate: {
+    type: Date,
+    default: null
   }
-}, { timestamps: true }); // Automatically adds 'createdAt' dates
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

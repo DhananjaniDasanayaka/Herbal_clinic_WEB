@@ -2,9 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const { getJwtSecret } = require('./config/jwt');
 
-// Import the auth routes you just created
-const authRoutes = require('./routes/auth'); 
+// Fail before opening a listening socket if authentication is misconfigured.
+getJwtSecret();
+
+// Import routes
+const authRoutes = require('./routes/auth');
+const assessmentRoutes = require('./routes/assessment');
 
 const app = express();
 app.use(cors());
@@ -13,13 +18,19 @@ app.use(express.json());
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
 })
-.then(() => console.log('✅ MongoDB Connected'))
-.catch(err => console.log('❌ MongoDB connection error:', err));
+  .then(() => console.log('✅ MongoDB Connected'))
+  .catch(err => console.log('❌ MongoDB connection error:', err));
 
-// Tell Express to use our auth routes whenever the URL starts with /api/auth
+// Route handlers
 app.use('/api/auth', authRoutes);
+app.use('/api/assessments', assessmentRoutes);
 
-// A simple test route
+// Health check and root test routes
+app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  res.json({ status: 'ok', service: 'HerbalClinic API', database: dbStatus });
+});
+
 app.get('/', (req, res) => {
   res.send('HerbalClinic API is running!');
 });
