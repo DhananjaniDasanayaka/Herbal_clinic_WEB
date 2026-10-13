@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
+import SkinTypeHistogram from '../components/SkinTypeHistogram';
 
 /* ─── Inline styles via a <style> tag injected once ─────────────────────── */
 const CSS = `
@@ -428,13 +429,13 @@ export default function Home() {
 
   return (
     <div>
-    
+
       {/* Mobile nav drawer */}
       {menuOpen && (
         <div style={{ background: 'var(--cream)', borderBottom: '1px solid var(--border)', padding: '1rem 2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {['#doshas','#how-it-works','#ingredients','#testimonials'].map((href, i) => (
+          {['#doshas', '#how-it-works', '#ingredients', '#testimonials'].map((href, i) => (
             <a key={i} href={href} style={{ fontSize: '0.9rem', color: 'var(--muted)', textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
-              {href.replace('#','').replace(/-/g,' ').replace(/\b\w/g, c => c.toUpperCase())}
+              {href.replace('#', '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
             </a>
           ))}
           <Link to="/assessment" className="btn-primary" style={{ justifyContent: 'center' }}>Start Free Assessment →</Link>
@@ -463,7 +464,7 @@ export default function Home() {
             <a href="#how-it-works" className="btn-secondary">How it works</a>
           </div>
           <div className="hero-stats an-fade-up an-d4">
-            {[['12k+','Skin assessments'],['94%','Report visible improvement'],['3','Dosha types covered']].map(([num, label], i) => (
+            {[['12k+', 'Skin assessments'], ['94%', 'Report visible improvement'], ['3', 'Dosha types covered']].map(([num, label], i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: i > 0 ? '2.5rem' : 0 }}>
                 {i > 0 && <div className="stat-divider" />}
                 <div>
@@ -478,10 +479,10 @@ export default function Home() {
         <div className="hero-visual">
           <div className="hero-card-main an-float">
             <svg viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M50 10 C20 30 10 60 30 90 C40 105 60 105 70 90 C90 60 80 30 50 10Z" fill="#4a7a38" opacity="0.7"/>
-              <path d="M50 10 C50 40 50 70 50 100" stroke="#2d5020" strokeWidth="1.5" opacity="0.5"/>
-              <path d="M50 40 C35 35 25 42 20 55" stroke="#2d5020" strokeWidth="1" opacity="0.4"/>
-              <path d="M50 55 C68 50 75 40 72 28" stroke="#2d5020" strokeWidth="1" opacity="0.4"/>
+              <path d="M50 10 C20 30 10 60 30 90 C40 105 60 105 70 90 C90 60 80 30 50 10Z" fill="#4a7a38" opacity="0.7" />
+              <path d="M50 10 C50 40 50 70 50 100" stroke="#2d5020" strokeWidth="1.5" opacity="0.5" />
+              <path d="M50 40 C35 35 25 42 20 55" stroke="#2d5020" strokeWidth="1" opacity="0.4" />
+              <path d="M50 55 C68 50 75 40 72 28" stroke="#2d5020" strokeWidth="1" opacity="0.4" />
             </svg>
             <span className="card-label">Your skin, balanced</span>
           </div>
@@ -549,6 +550,8 @@ export default function Home() {
         <div style={{ textAlign: 'center', marginTop: '3rem' }}>
           <Link to="/assessment" className="btn-primary">Discover my Dosha →</Link>
         </div>
+        <br />
+        <SkinTypeHistogram />
       </section>
 
       {/* ── HOW IT WORKS ── */}

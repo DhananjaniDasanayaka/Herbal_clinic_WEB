@@ -1,3 +1,5 @@
+//backend\routes\assessment.js
+
 const express = require('express');
 const { createHash } = require('crypto');
 const router = express.Router();
@@ -211,6 +213,79 @@ router.get('/latest', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch latest assessment.' });
   }
 });
+
+
+/**
+ * GET /api/assessments/stats/skin-types
+ * Counts unique users by their latest saved AI skin type.
+ */
+router.get('/stats/skin-types', authMiddleware, async (req, res) => {
+  try {
+    const skinTypes = ['Vata', 'Pitta', 'Kapha', 'Balanced'];
+
+    const results = await Assessment.aggregate([
+      // Use only assessments saved with user consent
+      {
+        $match: {
+          userConsentGiven: true,
+          savedByUser: true,
+          userId: { $exists: true, $ne: null },
+          imagePrediction: { $in: skinTypes }
+        }
+      },
+
+      // Latest assessment first
+      {
+        $sort: { createdAt: -1, _id: -1 }
+      },
+
+      // Count each user only once
+      {
+        $group: {
+          _id: '$userId',
+          skinType: { $first: '$imagePrediction' }
+        }
+      },
+
+      // Count users in each skin type
+      {
+        $group: {
+          _id: '$skinType',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const counts = {
+      Vata: 0,
+      Pitta: 0,
+      Kapha: 0,
+      Balanced: 0
+    };
+
+    results.forEach((item) => {
+      counts[item._id] = item.count;
+    });
+
+    const totalUsers = Object.values(counts).reduce(
+      (sum, count) => sum + count,
+      0
+    );
+
+    return res.json({
+      counts,
+      totalUsers
+    });
+
+  } catch (error) {
+    console.error('Skin type statistics error:', error);
+
+    return res.status(500).json({
+      message: 'Failed to load skin type statistics.'
+    });
+  }
+});
+
 
 /**
  * GET /api/assessments/:id
