@@ -1,58 +1,116 @@
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import tensorflow as tf
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
+import cv2
 import io
-import os
-
-# Ignore the TensorFlow terminal warnings
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 app = Flask(__name__)
-CORS(app) # This allows your React app to talk to this Python app safely
+CORS(app)
 
+# Load existing AI model
 print("Loading AI Brain... Please wait.")
-# Change this line
+
 model = tf.keras.models.load_model('dosha_model.keras')
+
 class_names = ['Balanced', 'Kapha', 'Pitta', 'Vata']
+
+# NEW: Load OpenCV face detector
+face_detector = cv2.CascadeClassifier(
+    cv2.data.haarcascades +
+    'haarcascade_frontalface_default.xml'
+)
+
+if face_detector.empty():
+    raise RuntimeError("Could not load face detector.")
+
 print("✅ AI Ready to accept images!")
+
 
 @app.route('/predict', methods=['POST'])
 def predict_dosha():
-    # 1. Check if an image was actually sent
+
+    # Check uploaded image
     if 'file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
-        
+        return jsonify({
+            'error': 'No file uploaded.'
+        }), 400
+
     file = request.files['file']
-    
+
     try:
-        # 2. Open the image and shrink it to 224x224 (what the AI expects)
-        image = Image.open(io.BytesIO(file.read())).convert('RGB')
-        image = image.resize((224, 224))
-        
-        # 3. Translate the image into numbers for TensorFlow
+        # Open original image
+        original_image = Image.open(
+            io.BytesIO(file.read())
+        ).convert('RGB')
+
+    except (UnidentifiedImageError, OSError):
+        return jsonify({
+            'error': 'Invalid image. Please try again.'
+        }), 400
+
+    try:
+        # NEW: Check for face before AI prediction
+        image_array = np.array(original_image)
+
+        gray_image = cv2.cvtColor(
+            image_array,
+            cv2.COLOR_RGB2GRAY
+        )
+
+        faces = face_detector.detectMultiScale(
+            gray_image,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(50, 50)
+        )
+
+        # If no face, stop prediction
+        if len(faces) == 0:
+            return jsonify({
+                'error': 'Face not detected. Please try again.'
+            }), 400
+
+        print("✅ Face detected. Starting AI prediction...")
+
+        # Existing MobileNetV2 preprocessing
+        image = original_image.resize((224, 224))
+
         img_array = tf.keras.utils.img_to_array(image)
-        img_array = tf.expand_dims(img_array, 0) # Create a "batch" of 1 image
-        
-        
-        # 4. Ask the AI to predict!
-        predictions = model.predict(img_array)
-        
-        # 5. Find the highest score
-        winning_index = np.argmax(predictions[0])
+
+        img_array = tf.expand_dims(img_array, 0)
+
+        # AI prediction
+        predictions = model.predict(
+            img_array,
+            verbose=0
+        )
+
+        winning_index = int(np.argmax(predictions[0]))
+
         winning_class = class_names[winning_index]
-        confidence_score = float(predictions[0][winning_index])
-        
-        # 6. Send the answer back to React
+
+        confidence_score = float(
+            predictions[0][winning_index]
+        )
+
+        # Return result to React
         return jsonify({
             'dosha': winning_class,
-            'confidence': round(confidence_score * 100, 2) # Turn 0.85 into 85.0%
+            'confidence': round(confidence_score * 100, 2)
         })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
-# Run the server on Port 5001 (so it doesn't fight with your Node backend on 5000)
+    except Exception:
+        app.logger.exception("Prediction failed")
+        return jsonify({
+            'error': 'Image analysis failed. Please try again.'
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(port=5001, debug=True)
